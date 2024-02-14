@@ -1,0 +1,58 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    command: '--default-authentication-plugin=caching_sha2_password'
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: simons-db # This line might need adjustment
+      MYSQL_DATABASE: example
+    volumes:
+      - ./db/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+    networks:
+      - backnet
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./db/password.txt:/run/secrets/db-password:ro  # Mount the password file into the container
+    networks:
+      - backnet
+      - frontnet
+    depends_on:
+      - db
+
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - frontnet
+      - backnet
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    networks:
+      - frontnet
+
+volumes:
+  db-data:
+
+networks:
+  backnet:
+  frontnet:
